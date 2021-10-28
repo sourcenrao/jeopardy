@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"reflect"
+	"strconv"
 	"sync"
 )
 
@@ -19,13 +19,12 @@ type Clue struct {
 type Board struct {
 	mu                 sync.Mutex
 	AllClues           []Clue
-	AllCategories      []string
 	RoundOneCategories []string
 	RoundTwoCategories []string
 	FinalJeopardy      Clue
 }
 
-func (c *Board) LoadData(filename string) error {
+func (c *Board) LoadData(filename string, numCategories int) error {
 	c.mu.Lock()
 	db, err := sql.Open("sqlite3", "./data/clues.db")
 	if err != nil {
@@ -33,47 +32,57 @@ func (c *Board) LoadData(filename string) error {
 	}
 	defer db.Close()
 
-	// Load 12 categories of clues
-	rows, err := db.Query("SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY IN	(SELECT CATEGORY FROM clues ORDER BY random() LIMIT 12)")
+	// Load numCategories*2 categories of clues for both rounds
+	numCategoriesStr := strconv.Itoa(numCategories * 2)
+	rows, err := db.Query(fmt.Sprintf(`SELECT CATEGORY FROM clues ORDER BY random() LIMIT %s`, numCategoriesStr))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 
-	categories := make(map[string]bool)
-
+	var allCategories []string
 	for rows.Next() {
-		var clue Clue
-		err = rows.Scan(&clue.Value, &clue.Category, &clue.Comments, &clue.Answer, &clue.Question)
+		var category string
+		err = rows.Scan(&category)
 		if err != nil {
 			log.Fatal(err)
 		}
-		c.AllClues = append(c.AllClues, clue)
-		categories[clue.Category] = true
+		allCategories = append(allCategories, category)
 	}
 
-	c.AllCategories = make([]string, 0, len(categories))
-	for k := range categories {
-		c.AllCategories = append(c.AllCategories, k)
-	}
+	c.RoundOneCategories = allCategories[:numCategories+1]
+	c.RoundTwoCategories = allCategories[numCategories:]
 
-	// Need to load final jeopardy question
-
-	c.mu.Unlock()
-
-	return nil
-}
-
-func (c *Board) InitializeGame() error {
-	c.mu.Lock()
-
-	fmt.Println(reflect.TypeOf(c.AllCategories))
-	fmt.Println(c.AllCategories)
-	c.RoundOneCategories = c.AllCategories[:7]
-	c.RoundTwoCategories = c.AllCategories[6:]
 	fmt.Println(c.RoundOneCategories)
 	fmt.Println(c.RoundTwoCategories)
 
+	// Find 6 questions of 200 value with distinct categories
+	// `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY IN (SELECT CATEGORY FROM clues ORDER BY random() LIMIT %s)`
+
+	// finalRow, err := db.Query("SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE VALUE = 200 LIMIT 1)")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer finalRow.Close()
+	// fmt.Println(finalRow)
+
+	// for finalRow.Next() {
+	// 	var clue Clue
+	// 	err = finalRow.Scan(&clue.Value, &clue.Category, &clue.Comments, &clue.Answer, &clue.Question)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	c.FinalJeopardy = clue
+	// }
+
 	c.mu.Unlock()
+
 	return nil
 }
+
+// func (c *Board) InitializeGame() error {
+// 	c.mu.Lock()
+
+// 	c.mu.Unlock()
+// 	return nil
+// }
