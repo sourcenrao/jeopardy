@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"sync"
 )
 
 type Clue struct {
@@ -17,7 +16,6 @@ type Clue struct {
 }
 
 type Board struct {
-	mu              sync.Mutex
 	RoundOneColumns []BoardColumn
 	RoundTwoColumns []BoardColumn
 	FinalJeopardy   Clue
@@ -28,8 +26,13 @@ type BoardColumn struct {
 	Clues    []Clue
 }
 
+// Add consts for hardcoded clue values
+
+// NewBoard that checks category count and constructs empty board
+
+// Create function for column generation
+
 func (c *Board) LoadData(filename string, numCategories int) error {
-	c.mu.Lock()
 
 	db, err := sql.Open("sqlite3", "./data/clues.db")
 	if err != nil {
@@ -66,7 +69,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 	for _, category := range RoundOneCategories {
 		var column BoardColumn
 		column.Category = category
-		column.Clues = make([]Clue, 5)
+		column.Clues = make([]Clue, 0)
 		for _, value := range RoundOneValues {
 			val := int(value)
 			row, err := db.Query(q, category, val)
@@ -88,7 +91,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 	for _, category := range RoundTwoCategories {
 		var column BoardColumn
 		column.Category = category
-		column.Clues = make([]Clue, 5)
+		column.Clues = make([]Clue, 0)
 		for _, value := range RoundTwoValues {
 			val := int(value)
 			row, err := db.Query(q, category, val)
@@ -122,8 +125,6 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 	}
 
 	fmt.Print(c)
-
-	c.mu.Unlock()
 
 	return nil
 }
