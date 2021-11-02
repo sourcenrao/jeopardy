@@ -17,15 +17,20 @@ type Clue struct {
 }
 
 type Board struct {
-	mu                 sync.Mutex
-	AllClues           []Clue
-	RoundOneCategories []string
-	RoundTwoCategories []string
-	FinalJeopardy      Clue
+	mu              sync.Mutex
+	RoundOneColumns []BoardColumn
+	RoundTwoColumns []BoardColumn
+	FinalJeopardy   Clue
+}
+
+type BoardColumn struct {
+	Category string
+	Clues    map[int]Clue
 }
 
 func (c *Board) LoadData(filename string, numCategories int) error {
 	c.mu.Lock()
+
 	db, err := sql.Open("sqlite3", "./data/clues.db")
 	if err != nil {
 		log.Fatal(err)
@@ -50,30 +55,76 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 		allCategories = append(allCategories, category)
 	}
 
-	c.RoundOneCategories = allCategories[:numCategories+1]
-	c.RoundTwoCategories = allCategories[numCategories:]
-
-	fmt.Println(c.RoundOneCategories)
-	fmt.Println(c.RoundTwoCategories)
+	RoundOneCategories := allCategories[:numCategories+1]
+	RoundTwoCategories := allCategories[numCategories:]
+	RoundOneValues := []int{200, 400, 600, 800, 1000}
+	RoundTwoValues := []int{400, 800, 1200, 1600, 2000}
 
 	// Find 6 questions of 200 value with distinct categories
-	// `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY IN (SELECT CATEGORY FROM clues ORDER BY random() LIMIT %s)`
+	q := `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY = ? AND VALUE = ? ORDER BY random() LIMIT 1`
 
-	// finalRow, err := db.Query("SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE VALUE = 200 LIMIT 1)")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer finalRow.Close()
-	// fmt.Println(finalRow)
+	for _, category := range RoundOneCategories {
+		var column BoardColumn
+		column.Category = category
+		column.Clues = make(map[int]Clue, 5)
+		for _, value := range RoundOneValues {
+			fmt.Print(category)
+			val := int(value)
+			row, err := db.Query(q, category, val)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer row.Close()
+			row.Next()
+			var tempClue Clue
+			err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
+			if err != nil {
+				log.Fatal(err)
+			}
+			column.Clues[int(tempClue.Value)] = tempClue
+		}
+		c.RoundOneColumns = append(c.RoundOneColumns, column)
+		fmt.Print(c.RoundOneColumns)
+	}
 
-	// for finalRow.Next() {
-	// 	var clue Clue
-	// 	err = finalRow.Scan(&clue.Value, &clue.Category, &clue.Comments, &clue.Answer, &clue.Question)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	c.FinalJeopardy = clue
-	// }
+	for _, category := range RoundTwoCategories {
+		var column BoardColumn
+		column.Category = category
+		column.Clues = make(map[int]Clue, 5)
+		for _, value := range RoundTwoValues {
+			fmt.Print(category)
+			val := int(value)
+			row, err := db.Query(q, category, val)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer row.Close()
+			row.Next()
+			var tempClue Clue
+			err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
+			if err != nil {
+				log.Fatal(err)
+			}
+			column.Clues[int(tempClue.Value)] = tempClue
+		}
+		c.RoundTwoColumns = append(c.RoundTwoColumns, column)
+	}
+
+	// Final Jeopardy clue
+	finalq := `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE VALUE > 2000 ORDER BY random() LIMIT 1`
+
+	row, err := db.Query(finalq)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer row.Close()
+	row.Next()
+	err = row.Scan(&c.FinalJeopardy.Value, &c.FinalJeopardy.Category, &c.FinalJeopardy.Comments, &c.FinalJeopardy.Answer, &c.FinalJeopardy.Question)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Print(c)
 
 	c.mu.Unlock()
 
