@@ -25,7 +25,7 @@ type Board struct {
 
 type BoardColumn struct {
 	Category string
-	Clues    map[int]Clue
+	Clues    []Clue
 }
 
 func (c *Board) LoadData(filename string, numCategories int) error {
@@ -66,7 +66,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 	for _, category := range RoundOneCategories {
 		var column BoardColumn
 		column.Category = category
-		column.Clues = make(map[int]Clue, 5)
+		column.Clues = make([]Clue, 5)
 		for _, value := range RoundOneValues {
 			fmt.Print(category)
 			val := int(value)
@@ -81,7 +81,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			column.Clues[int(tempClue.Value)] = tempClue
+			column.Clues = append(column.Clues, tempClue)
 		}
 		c.RoundOneColumns = append(c.RoundOneColumns, column)
 		fmt.Print(c.RoundOneColumns)
@@ -90,7 +90,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 	for _, category := range RoundTwoCategories {
 		var column BoardColumn
 		column.Category = category
-		column.Clues = make(map[int]Clue, 5)
+		column.Clues = make([]Clue, 5)
 		for _, value := range RoundTwoValues {
 			fmt.Print(category)
 			val := int(value)
