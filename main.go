@@ -14,6 +14,12 @@ func main() {
 	flag.IntVar(&categories, "c", 6, "number of categories per round (default 6)")
 	flag.Parse()
 
+	if categories < 3 {
+		categories = 3
+	} else if categories > 8 {
+		categories = 8
+	}
+
 	filepath := "./data/clues.db"
 
 	var board board.Board
