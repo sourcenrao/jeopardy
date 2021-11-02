@@ -68,7 +68,6 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 		column.Category = category
 		column.Clues = make([]Clue, 5)
 		for _, value := range RoundOneValues {
-			fmt.Print(category)
 			val := int(value)
 			row, err := db.Query(q, category, val)
 			if err != nil {
@@ -84,7 +83,6 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 			column.Clues = append(column.Clues, tempClue)
 		}
 		c.RoundOneColumns = append(c.RoundOneColumns, column)
-		fmt.Print(c.RoundOneColumns)
 	}
 
 	for _, category := range RoundTwoCategories {
@@ -92,7 +90,6 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 		column.Category = category
 		column.Clues = make([]Clue, 5)
 		for _, value := range RoundTwoValues {
-			fmt.Print(category)
 			val := int(value)
 			row, err := db.Query(q, category, val)
 			if err != nil {
@@ -105,7 +102,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			column.Clues[int(tempClue.Value)] = tempClue
+			column.Clues = append(column.Clues, tempClue)
 		}
 		c.RoundTwoColumns = append(c.RoundTwoColumns, column)
 	}
