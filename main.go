@@ -14,17 +14,14 @@ func main() {
 	flag.IntVar(&categories, "c", 6, "number of categories per round (default 6)")
 	flag.Parse()
 
-	if categories < 3 {
-		categories = 3
-	} else if categories > 8 {
-		categories = 8
-	}
-
 	filepath := "./data/clues.db"
 
-	var board board.Board
+	var board, err = board.NewBoard(categories)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	err := board.LoadData(filepath, categories)
+	err = board.LoadData(filepath)
 	if err != nil {
 		err = fmt.Errorf("data failed to load: %w", err)
 		log.Fatal(err)

@@ -19,6 +19,7 @@ type Board struct {
 	RoundOneColumns []BoardColumn
 	RoundTwoColumns []BoardColumn
 	FinalJeopardy   Clue
+	NumCategories   int
 }
 
 type BoardColumn struct {
@@ -26,13 +27,26 @@ type BoardColumn struct {
 	Clues    []Clue
 }
 
-// Add consts for hardcoded clue values
+var (
+	roundOneValues [5]int = [5]int{200, 400, 600, 800, 1000}
+	roundTwoValues [5]int = [5]int{400, 800, 1200, 1600, 2000}
+)
 
 // NewBoard that checks category count and constructs empty board
+func NewBoard(numCategories int) (Board, error) {
+	if numCategories < 3 {
+		numCategories = 3
+	} else if numCategories > 8 {
+		numCategories = 8
+	}
+	var c Board
+	c.NumCategories = int(numCategories)
+	return c, nil
+}
 
 // Create function for column generation
 
-func (c *Board) LoadData(filename string, numCategories int) error {
+func (c *Board) LoadData(filename string) error {
 
 	db, err := sql.Open("sqlite3", "./data/clues.db")
 	if err != nil {
@@ -41,8 +55,8 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 	defer db.Close()
 
 	// Load numCategories*2 categories of clues for both rounds
-	numCategoriesStr := strconv.Itoa(numCategories * 2)
-	rows, err := db.Query(fmt.Sprintf(`SELECT CATEGORY FROM clues ORDER BY random() LIMIT %s`, numCategoriesStr))
+	totalCategoriesStr := strconv.Itoa(c.NumCategories * 2)
+	rows, err := db.Query(fmt.Sprintf(`SELECT CATEGORY FROM clues ORDER BY random() LIMIT %s`, totalCategoriesStr))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,10 +72,8 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 		allCategories = append(allCategories, category)
 	}
 
-	RoundOneCategories := allCategories[:numCategories+1]
-	RoundTwoCategories := allCategories[numCategories:]
-	RoundOneValues := []int{200, 400, 600, 800, 1000}
-	RoundTwoValues := []int{400, 800, 1200, 1600, 2000}
+	RoundOneCategories := allCategories[:c.NumCategories+1]
+	RoundTwoCategories := allCategories[c.NumCategories:]
 
 	// Find 6 questions of 200 value with distinct categories
 	q := `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY = ? AND VALUE = ? ORDER BY random() LIMIT 1`
@@ -70,7 +82,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 		var column BoardColumn
 		column.Category = category
 		column.Clues = make([]Clue, 0)
-		for _, value := range RoundOneValues {
+		for _, value := range roundOneValues {
 			val := int(value)
 			row, err := db.Query(q, category, val)
 			if err != nil {
@@ -92,7 +104,7 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 		var column BoardColumn
 		column.Category = category
 		column.Clues = make([]Clue, 0)
-		for _, value := range RoundTwoValues {
+		for _, value := range roundTwoValues {
 			val := int(value)
 			row, err := db.Query(q, category, val)
 			if err != nil {
@@ -128,10 +140,3 @@ func (c *Board) LoadData(filename string, numCategories int) error {
 
 	return nil
 }
-
-// func (c *Board) InitializeGame() error {
-// 	c.mu.Lock()
-
-// 	c.mu.Unlock()
-// 	return nil
-// }
