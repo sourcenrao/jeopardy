@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strconv"
 )
 
 type Clue struct {
@@ -30,6 +29,8 @@ type BoardColumn struct {
 var (
 	roundOneValues [5]int = [5]int{200, 400, 600, 800, 1000}
 	roundTwoValues [5]int = [5]int{400, 800, 1200, 1600, 2000}
+	q              string = `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY = ? AND VALUE = ? ORDER BY random() LIMIT 1`
+	finalq         string = `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE VALUE > 2000 ORDER BY random() LIMIT 1`
 )
 
 // NewBoard that checks category count and constructs empty board
@@ -44,8 +45,6 @@ func NewBoard(numCategories int) (Board, error) {
 	return c, nil
 }
 
-// Create function for column generation
-
 func (c *Board) LoadData(filename string) error {
 
 	db, err := sql.Open("sqlite3", "./data/clues.db")
@@ -55,8 +54,8 @@ func (c *Board) LoadData(filename string) error {
 	defer db.Close()
 
 	// Load numCategories*2 categories of clues for both rounds
-	totalCategoriesStr := strconv.Itoa(c.NumCategories * 2)
-	rows, err := db.Query(fmt.Sprintf(`SELECT CATEGORY FROM clues ORDER BY random() LIMIT %s`, totalCategoriesStr))
+	totalCategories := c.NumCategories * 2
+	rows, err := db.Query(fmt.Sprintf(`SELECT CATEGORY FROM clues ORDER BY random() LIMIT %d`, totalCategories))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,55 +74,16 @@ func (c *Board) LoadData(filename string) error {
 	RoundOneCategories := allCategories[:c.NumCategories+1]
 	RoundTwoCategories := allCategories[c.NumCategories:]
 
-	// Find 6 questions of 200 value with distinct categories
-	q := `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY = ? AND VALUE = ? ORDER BY random() LIMIT 1`
-
-	for _, category := range RoundOneCategories {
-		var column BoardColumn
-		column.Category = category
-		column.Clues = make([]Clue, 0)
-		for _, value := range roundOneValues {
-			val := int(value)
-			row, err := db.Query(q, category, val)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer row.Close()
-			row.Next()
-			var tempClue Clue
-			err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
-			if err != nil {
-				log.Fatal(err)
-			}
-			column.Clues = append(column.Clues, tempClue)
-		}
-		c.RoundOneColumns = append(c.RoundOneColumns, column)
+	c.RoundOneColumns, err = GetRoundColumns(RoundOneCategories, roundOneValues[:], db)
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	for _, category := range RoundTwoCategories {
-		var column BoardColumn
-		column.Category = category
-		column.Clues = make([]Clue, 0)
-		for _, value := range roundTwoValues {
-			val := int(value)
-			row, err := db.Query(q, category, val)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer row.Close()
-			row.Next()
-			var tempClue Clue
-			err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
-			if err != nil {
-				log.Fatal(err)
-			}
-			column.Clues = append(column.Clues, tempClue)
-		}
-		c.RoundTwoColumns = append(c.RoundTwoColumns, column)
+	c.RoundTwoColumns, err = GetRoundColumns(RoundTwoCategories, roundTwoValues[:], db)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// Final Jeopardy clue
-	finalq := `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE VALUE > 2000 ORDER BY random() LIMIT 1`
 
 	row, err := db.Query(finalq)
 	if err != nil {
@@ -139,4 +99,29 @@ func (c *Board) LoadData(filename string) error {
 	fmt.Print(c)
 
 	return nil
+}
+
+func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColumn, error) {
+	var roundColumns []BoardColumn
+	for _, category := range categories {
+		var column BoardColumn
+		column.Category = category
+		column.Clues = make([]Clue, 0)
+		for _, value := range values {
+			row, err := db.Query(q, category, value)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer row.Close()
+			row.Next()
+			var tempClue Clue
+			err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
+			if err != nil {
+				log.Fatal(err)
+			}
+			column.Clues = append(column.Clues, tempClue)
+		}
+		roundColumns = append(roundColumns, column)
+	}
+	return roundColumns, nil
 }
