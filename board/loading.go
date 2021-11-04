@@ -46,7 +46,6 @@ func NewBoard(numCategories int) (Board, error) {
 }
 
 func (c *Board) LoadData(filename string) error {
-
 	db, err := sql.Open("sqlite3", "./data/clues.db")
 	if err != nil {
 		log.Fatal(err)
