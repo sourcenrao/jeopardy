@@ -6,24 +6,45 @@ import (
 )
 
 type Clue struct {
-	Value    uint32
-	Category string
-	Comments string
-	Answer   string
-	Question string
+	Value    uint32 `json:"value"`
+	Category string `json:"category"`
+	Comments string `json:"comment"`
+	Answer   string `json:"answer"`
+	Question string `json:"question"`
 }
 
 type Board struct {
-	RoundOneColumns []BoardColumn
-	RoundTwoColumns []BoardColumn
-	FinalJeopardy   Clue
-	NumCategories   int
+	RoundOneColumns []BoardColumn `json:"round1"`
+	RoundTwoColumns []BoardColumn `json:"round2"`
+	FinalJeopardy   Clue          `json:"final"`
+	NumCategories   int           `json:"numcategories"`
 }
 
 type BoardColumn struct {
-	Category string
-	Clues    []Clue
+	Clues []Clue `json:"clues"`
 }
+
+/* Example:
+{
+	"round1" : [
+		"clues" : [
+			{
+				Clue object
+			},
+			{
+				Clue object
+			},
+			{etc}
+			],
+			[
+				{},{},{}
+			],
+			[etc]
+	],
+	"round2" : [columns of clues],
+	"final" : {final jeopardy clue}
+}
+*/
 
 var (
 	roundOneValues [5]int = [5]int{200, 400, 600, 800, 1000}
@@ -102,7 +123,6 @@ func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColu
 	var roundColumns []BoardColumn
 	for _, category := range categories {
 		var column BoardColumn
-		column.Category = category
 		column.Clues = make([]Clue, 0)
 		for _, value := range values {
 			row, err := db.Query(q, category, value)

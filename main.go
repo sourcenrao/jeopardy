@@ -4,25 +4,47 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 
+	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sourcenrao/jeopardy/board"
-	"github.com/sourcenrao/jeopardy/web"
 )
 
 var (
-	categories int
-	address    string
-	filepath   string = "./data/clues.db"
+	categoryCount int
+	address       string
+	filepath      string = "./data/clues.db"
 )
 
 func main() {
 
-	flag.IntVar(&categories, "c", 6, "number of categories per round (default 6)")
-	flag.StringVar(&address, "address", ":8000", "browser access address")
+	flag.IntVar(&categoryCount, "c", 6, "number of categoryCount per round (default 6)")
+	flag.StringVar(&address, "address", ":8080", "browser access address (default localhost:8080)")
 	flag.Parse()
 
-	board, err := board.NewBoard(categories)
+	board := NewGame(categoryCount, filepath)
+
+	for _, category := range board.RoundOneColumns {
+		for _, clue := range category.Clues {
+			fmt.Println(clue.Value, clue.Question, clue.Answer)
+		}
+	}
+
+	r := gin.Default()
+	r.GET("/ping", func(c *gin.Context) {
+		c.String(http.StatusOK, "pong")
+	})
+	r.GET("/jeopardy", func(c *gin.Context) {
+		c.JSON(http.StatusOK, board)
+		board = NewGame(categoryCount, filepath)
+	})
+	r.Run(address)
+
+}
+
+func NewGame(categoryCount int, filepath string) board.Board {
+	board, err := board.NewBoard(categoryCount)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,16 +55,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, category := range board.RoundOneColumns {
-		fmt.Println(category.Category)
-		for _, clue := range category.Clues {
-			fmt.Println(clue.Value, clue.Question, clue.Answer)
-		}
-	}
-
-	game, err := web.NewGame(board)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(game)
+	return board
 }
