@@ -2,7 +2,6 @@ package board
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 )
 
@@ -29,6 +28,7 @@ type BoardColumn struct {
 var (
 	roundOneValues [5]int = [5]int{200, 400, 600, 800, 1000}
 	roundTwoValues [5]int = [5]int{400, 800, 1200, 1600, 2000}
+	categoryq      string = `SELECT CATEGORY FROM clues ORDER BY random() LIMIT ?`
 	q              string = `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE CATEGORY = ? AND VALUE = ? ORDER BY random() LIMIT 1`
 	finalq         string = `SELECT VALUE, CATEGORY, COMMENTS, ANSWER, QUESTION FROM clues WHERE VALUE > 2000 ORDER BY random() LIMIT 1`
 )
@@ -54,7 +54,7 @@ func (c *Board) LoadData(filename string) error {
 
 	// Load numCategories*2 categories of clues for both rounds
 	totalCategories := c.NumCategories * 2
-	rows, err := db.Query(fmt.Sprintf(`SELECT CATEGORY FROM clues ORDER BY random() LIMIT %d`, totalCategories))
+	rows, err := db.Query(categoryq, totalCategories)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,8 +94,6 @@ func (c *Board) LoadData(filename string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Print(c)
 
 	return nil
 }
