@@ -30,19 +30,16 @@ type BoardColumn struct {
 	"round1" : [
 		"clues" : [
 			{
-				Clue object
-			},
-			{
-				Clue object
+				Clue object (val, cat, com, ans, q)
 			},
 			{etc}
 			],
-			[
+		"clues" : [
 				{},{},{}
 			],
 			[etc]
 	],
-	"round2" : [columns of clues],
+	"round2" : [array of "clues"],
 	"final" : {final jeopardy clue}
 }
 */
@@ -117,7 +114,7 @@ func (c *Board) LoadData(filename string, db *sql.DB) error {
 
 func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColumn, error) {
 	var roundColumns []BoardColumn
-	// Turn this loop into a goroutine
+	// Turn this loop into a goroutine since order of categories within rounds don't matter
 	cats := make(chan BoardColumn, len(categories))
 	var wg sync.WaitGroup
 	for _, category := range categories {
@@ -125,6 +122,7 @@ func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColu
 		go func(category string) {
 			var column BoardColumn
 			column.Clues = make([]Clue, 0)
+			// Clues must be in value order so they can't be in goroutines without extra sorting
 			for _, value := range values {
 				row, err := db.Query(q, category, value)
 				if err != nil {
@@ -139,7 +137,7 @@ func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColu
 				}
 				column.Clues = append(column.Clues, tempClue)
 			}
-			// move append outside of loop and get columns from channel
+			// Move appending category to separate goroutine to get column from channel
 			cats <- column
 		}(category)
 
