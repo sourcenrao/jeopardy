@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -23,7 +24,13 @@ func main() {
 	flag.StringVar(&address, "address", ":8080", "browser access address (default localhost:8080)")
 	flag.Parse()
 
-	board := NewGame(categoryCount, filepath)
+	db, err := sql.Open("sqlite3", "./data/clues.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	board := NewGame(categoryCount, filepath, db)
 
 	for _, category := range board.RoundOneColumns {
 		for _, clue := range category.Clues {
@@ -32,24 +39,24 @@ func main() {
 	}
 
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(http.StatusOK, "pong")
+	r.GET("", func(c *gin.Context) {
+		c.String(http.StatusOK, "Welcome to my Jeopardy game generator API, try /jeopardy to get unique data for a full game each refresh.")
 	})
 	r.GET("/jeopardy", func(c *gin.Context) {
 		c.JSON(http.StatusOK, board)
-		board = NewGame(categoryCount, filepath)
+		board = NewGame(categoryCount, filepath, db)
 	})
 	r.Run(address)
 
 }
 
-func NewGame(categoryCount int, filepath string) board.Board {
+func NewGame(categoryCount int, filepath string, db *sql.DB) board.Board {
 	board, err := board.NewBoard(categoryCount)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = board.LoadData(filepath)
+	err = board.LoadData(filepath, db)
 	if err != nil {
 		err = fmt.Errorf("data failed to load: %w", err)
 		log.Fatal(err)

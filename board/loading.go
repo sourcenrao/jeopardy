@@ -3,6 +3,7 @@ package board
 import (
 	"database/sql"
 	"log"
+	"sync"
 )
 
 type Clue struct {
@@ -66,12 +67,7 @@ func NewBoard(numCategories int) (Board, error) {
 	return c, nil
 }
 
-func (c *Board) LoadData(filename string) error {
-	db, err := sql.Open("sqlite3", "./data/clues.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+func (c *Board) LoadData(filename string, db *sql.DB) error {
 
 	// Load numCategories*2 categories of clues for both rounds
 	totalCategories := c.NumCategories * 2
@@ -91,7 +87,7 @@ func (c *Board) LoadData(filename string) error {
 		allCategories = append(allCategories, category)
 	}
 
-	RoundOneCategories := allCategories[:c.NumCategories+1]
+	RoundOneCategories := allCategories[:c.NumCategories]
 	RoundTwoCategories := allCategories[c.NumCategories:]
 
 	c.RoundOneColumns, err = GetRoundColumns(RoundOneCategories, roundOneValues[:], db)
@@ -121,24 +117,38 @@ func (c *Board) LoadData(filename string) error {
 
 func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColumn, error) {
 	var roundColumns []BoardColumn
+	// Turn this loop into a goroutine
+	cats := make(chan BoardColumn, len(categories))
+	var wg sync.WaitGroup
 	for _, category := range categories {
-		var column BoardColumn
-		column.Clues = make([]Clue, 0)
-		for _, value := range values {
-			row, err := db.Query(q, category, value)
-			if err != nil {
-				log.Fatal(err)
+		wg.Add(1)
+		go func(category string) {
+			var column BoardColumn
+			column.Clues = make([]Clue, 0)
+			for _, value := range values {
+				row, err := db.Query(q, category, value)
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer row.Close()
+				row.Next()
+				var tempClue Clue
+				err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
+				if err != nil {
+					log.Fatal(err)
+				}
+				column.Clues = append(column.Clues, tempClue)
 			}
-			defer row.Close()
-			row.Next()
-			var tempClue Clue
-			err = row.Scan(&tempClue.Value, &tempClue.Category, &tempClue.Comments, &tempClue.Answer, &tempClue.Question)
-			if err != nil {
-				log.Fatal(err)
-			}
-			column.Clues = append(column.Clues, tempClue)
-		}
-		roundColumns = append(roundColumns, column)
+			// move append outside of loop and get columns from channel
+			cats <- column
+		}(category)
+
+		go func() {
+			cat := <-cats
+			roundColumns = append(roundColumns, cat)
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 	return roundColumns, nil
 }
