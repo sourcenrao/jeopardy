@@ -1,9 +1,11 @@
 package board
 
 import (
+	"context"
 	"database/sql"
 	"log"
-	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type Clue struct {
@@ -116,15 +118,15 @@ func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColu
 	var roundColumns []BoardColumn
 	// Turn this loop into a goroutine since order of categories within rounds don't matter
 	cats := make(chan BoardColumn, len(categories))
-	var wg sync.WaitGroup
+	g, ctx := errgroup.WithContext(context.Background())
 	for _, category := range categories {
-		wg.Add(1)
-		go func(category string) {
+		catLocal := category
+		g.Go(func() error {
 			var column BoardColumn
 			column.Clues = make([]Clue, 0)
 			// Clues must be in value order so they can't be in goroutines without extra sorting
 			for _, value := range values {
-				row, err := db.Query(q, category, value)
+				row, err := db.Query(q, catLocal, value)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -139,14 +141,17 @@ func GetRoundColumns(categories []string, values []int, db *sql.DB) ([]BoardColu
 			}
 			// Move appending category to separate goroutine to get column from channel
 			cats <- column
-		}(category)
-
-		go func() {
-			cat := <-cats
-			roundColumns = append(roundColumns, cat)
-			wg.Done()
-		}()
+			return nil
+		})
 	}
-	wg.Wait()
+	for range categories {
+		select {
+		case cat := <-cats:
+			roundColumns = append(roundColumns, cat)
+		case <-ctx.Done():
+			return roundColumns, ctx.Err()
+		}
+	}
+
 	return roundColumns, nil
 }

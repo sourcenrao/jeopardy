@@ -33,8 +33,8 @@ func Server(categoryCount int, b board.Board, address string, db *sql.DB) {
 		}
 	})
 	r.GET("/jeopardy/:category/:numClues", func(c *gin.Context) {
-		numClues, err := strconv.Atoi(c.Param("numClues"))
 		tip := ""
+		numClues, err := strconv.Atoi(c.Param("numClues"))
 		if err != nil {
 			numClues = 10
 			tip = "WARNING: You may have entered an invalid number of clues, using default of 10."
