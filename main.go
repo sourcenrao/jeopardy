@@ -5,8 +5,8 @@ import (
 	"flag"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/sourcenrao/jeopardy/api"
+	_ "modernc.org/sqlite"
 )
 
 var (
@@ -20,7 +20,7 @@ func main() {
 	flag.StringVar(&address, "address", ":8080", "browser access address (default localhost:8080)")
 	flag.Parse()
 
-	db, err := sql.Open("sqlite3", "./data/clues.db")
+	db, err := sql.Open("sqlite", "./data/clues.db")
 	if err != nil {
 		log.Fatal(err)
 	}
