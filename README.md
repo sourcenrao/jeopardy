@@ -4,8 +4,7 @@ A custom mySQL database is queried each time data is requested, currently access
 
 **Instructions**
 
-Download the pre-compiled and zipped exectuable with data from the releases section.
-If you want to compile it yourself, you'll need the GNU Compiler (you can get it [here](https://jmeubank.github.io/tdm-gcc/download/) for Windows).
+Download the pre-compiled and zipped folder from the releases section.
 
 Once you have it running, navigate to http://localhost:8080/ for information or http://localhost:8080/jeopardy for unique game data.
 

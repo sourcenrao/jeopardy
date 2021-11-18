@@ -16,7 +16,9 @@ var (
 	filepath string = "./data/clues.db"
 	numClues int    = 10
 	welcome  string = `Welcome to my Jeopardy game generator API, try /jeopardy to get unique data for a full game each refresh. 
-You can use /jeopardy/(category name) to view 10 random clues from that category or view more than 10 using /jeopardy/(category name)/(quantity)`
+You can use /jeopardy/(category name) to view 10 random clues from that category or view more than 10 using /jeopardy/(category name)/(quantity)
+Flags:	-c <int>		| number of categories per round (default 6)
+	-address <address:port>	| browser access address (default localhost:8080)`
 )
 
 func Server(categoryCount int, b board.Board, address string, db *sql.DB) {
